@@ -1,69 +1,59 @@
 package com.example.mobilelibrary.ui.dashboard;
 
-import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CameraDevice.StateCallback;
-import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.params.StreamConfigurationMap;
-import android.media.Image;
+import android.graphics.Matrix;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.util.Log;
+import android.util.DisplayMetrics;
 import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.Surface;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.view.ViewTreeObserver;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
+import androidx.camera.core.CameraX;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageAnalysisConfig;
+import androidx.camera.core.Preview;
+import androidx.camera.core.PreviewConfig;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
+import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.ViewModelProviders;
 
 import com.example.mobilelibrary.R;
-import com.google.ar.core.Frame;
-import com.google.ar.core.TrackingState;
-import com.google.ar.core.exceptions.NotYetAvailableException;
-import com.google.ar.sceneform.FrameTime;
-import com.google.ar.sceneform.Scene;
-import com.google.ar.sceneform.ux.ArFragment;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.security.Permission;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class DashboardFragment extends Fragment {
+public class DashboardFragment extends Fragment implements LifecycleOwner {
 
     private static final String TAG = "CAMERA";
 
     private DashboardViewModel dashboardViewModel;
 
-    private Context context;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private ArFragment arFragment;
+    private TextureView textureView;
+
+    private ImageView overlay;
+    private int imageViewWidth;
+    private int imageViewHeight;
+
+    private Context context;
+    private Activity activity;
+
+    private static class CompareSizeByArea implements Comparator<Size> {
+        @Override
+        public int compare(Size lhs, Size rhs) {
+            return Long.signum((long) lhs.getWidth() * lhs.getHeight() /
+                    (long) rhs.getWidth() * rhs.getHeight());
+        }
+    }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -71,31 +61,92 @@ public class DashboardFragment extends Fragment {
                 ViewModelProviders.of(this).get(DashboardViewModel.class);
         View root = inflater.inflate(R.layout.fragment_dashboard, container, false);
 
-        context = this.getActivity();
+        context = this.getContext();
+        activity = this.getActivity();
 
-        arFragment = (ArFragment) getChildFragmentManager().findFragmentById(R.id.ar_fragment);
-        arFragment.getArSceneView().getScene().addOnUpdateListener(this::onUpdateFrame);
+        textureView = root.findViewById(R.id.texture_view_camera);
+        textureView.postDelayed(this::startCamera, 100);
+        textureView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                updateTransform();
+            }
+        });
 
+        overlay = root.findViewById(R.id.overlay);
+        overlay.bringToFront();
+        ViewTreeObserver vto = overlay.getViewTreeObserver();
+        vto.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                overlay.getViewTreeObserver().removeOnPreDrawListener(this);
+                imageViewHeight = overlay.getMeasuredHeight();
+                imageViewWidth = overlay.getMeasuredWidth();
+                return true;
+            }
+        });
         return root;
     }
 
-    private void onUpdateFrame(FrameTime frameTime) {
-        Frame frame = arFragment.getArSceneView().getArFrame();
 
-        // If there is no frame or ARCore is not tracking yet, just return.
-        if (frame == null || frame.getCamera().getTrackingState() != TrackingState.TRACKING) {
-            return;
+    private void startCamera() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        textureView.getDisplay().getRealMetrics(metrics);
+        Size screenSize = new Size(metrics.widthPixels, metrics.heightPixels);
+
+        PreviewConfig previewConfigBuilder = new PreviewConfig
+                .Builder()
+                .setTargetResolution(screenSize)
+                .setTargetRotation(textureView.getDisplay().getRotation())
+                .build();
+        Preview preview = new Preview(previewConfigBuilder);
+
+
+
+        preview.setOnPreviewOutputUpdateListener(output -> {
+            ViewGroup parent = (ViewGroup) textureView.getParent();
+            parent.removeView(textureView);
+            parent.addView(textureView, 0);
+            textureView.setSurfaceTexture(output.getSurfaceTexture());
+            updateTransform();
+        });
+
+        ImageAnalysisConfig analysisConfig = new ImageAnalysisConfig
+                .Builder()
+                .setImageReaderMode(ImageAnalysis.ImageReaderMode.ACQUIRE_LATEST_IMAGE)
+                .build();
+
+        ImageAnalysis analysis = new ImageAnalysis(analysisConfig);
+
+        analysis.setAnalyzer(executor, new ImageTextAnalyzer(activity, new Size(imageViewWidth, imageViewHeight), overlay));
+        CameraX.bindToLifecycle(this, preview, analysis);
+    }
+
+    private void updateTransform() {
+        Matrix matrix = new Matrix();
+        float centerX = textureView.getWidth() / 2f;
+        float centerY = textureView.getHeight() / 2f;
+
+        int rotationDegrees;
+        switch(textureView.getDisplay().getRotation()) {
+            case Surface.ROTATION_0:
+                rotationDegrees = 0;
+                break;
+            case Surface.ROTATION_90:
+                rotationDegrees = 90;
+                break;
+            case Surface.ROTATION_180:
+                rotationDegrees = 180;
+                break;
+            case Surface.ROTATION_270:
+                rotationDegrees = 270;
+                break;
+            default:
+                return;
         }
 
-        try {
-            final Image image = frame.acquireCameraImage();
-            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-            byte[] bytes = new byte[buffer.capacity()];
-            buffer.get(bytes);
-            Bitmap bitmapImage = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
-            // TODO: Get text detection
-        } catch (NotYetAvailableException e) {
-            e.printStackTrace();
-        }
+        matrix.postRotate(-rotationDegrees, centerX, centerY);
+
+        textureView.setTransform(matrix);
     }
 }
