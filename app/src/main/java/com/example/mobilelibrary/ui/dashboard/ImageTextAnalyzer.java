@@ -1,23 +1,42 @@
 package com.example.mobilelibrary.ui.dashboard;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.os.Bundle;
 import android.util.Size;
 import android.widget.ImageView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
+import com.example.mobilelibrary.ui.home.HomeFragment;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.ml.vision.FirebaseVision;
+import com.google.firebase.ml.vision.common.FirebaseVisionImage;
+import com.google.firebase.ml.vision.text.FirebaseVisionText;
+import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
+import com.google.firebase.ml.vision.text.RecognizedLanguage;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static com.firebase.ui.auth.AuthUI.getApplicationContext;
+import static java.lang.System.exit;
 
 public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     private long lastAnalyzedTimestamp = 0L;
@@ -90,6 +109,8 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
 
             Bitmap mutableBitmap = scaledBitmap.copy(Bitmap.Config.ARGB_8888, true);
             // TODO: Get text blocks detections
+            textAnalyzer(mutableBitmap);
+
 
             Canvas canvas = new Canvas(mutableBitmap);
             Paint paint = new Paint();
@@ -101,5 +122,72 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
             canvas.drawRect(0, 0, 100, 100, paint);
             activity.runOnUiThread(() -> overlay.setImageBitmap(mutableBitmap));
         }
+    }
+
+
+    public void textAnalyzer(Bitmap bitmap) {
+        FirebaseVisionImage firebaseVisionImage = FirebaseVisionImage.fromBitmap(bitmap);
+        FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
+                .getOnDeviceTextRecognizer();
+        processImage(firebaseVisionImage);
+    }
+
+    public void processImage(FirebaseVisionImage firebaseVisionImage) {
+        FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
+                .getOnDeviceTextRecognizer();
+        Task<FirebaseVisionText> result =
+                detector.processImage(firebaseVisionImage)
+                        .addOnSuccessListener(new OnSuccessListener<FirebaseVisionText>() {
+                            @Override
+                            public void onSuccess(FirebaseVisionText firebaseVisionText) {
+                                // Task completed successfully
+                                // ...
+                                String extractedResult = firebaseVisionText.getText();
+                                splitText(firebaseVisionText);
+
+
+                                Toast.makeText(getApplicationContext(), extractedResult, Toast.LENGTH_LONG).show();
+
+
+                            }
+                        })
+                        .addOnFailureListener(
+                                new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        // Task failed with an exception
+                                        // ...
+
+
+                                    }
+                                });
+
+
+
+    }
+
+    public void splitText(FirebaseVisionText fb) {
+        for (FirebaseVisionText.TextBlock block : fb.getTextBlocks()) {
+            String blockText = block.getText();
+            Float blockConfidence = block.getConfidence();
+            List<RecognizedLanguage> blockLanguages = block.getRecognizedLanguages();
+            Point[] blockCornerPoints = block.getCornerPoints();
+            Rect blockFrame = block.getBoundingBox();
+            for (FirebaseVisionText.Line line : block.getLines()) {
+                String lineText = line.getText();
+                Float lineConfidence = line.getConfidence();
+                List<RecognizedLanguage> lineLanguages = line.getRecognizedLanguages();
+                Point[] lineCornerPoints = line.getCornerPoints();
+                Rect lineFrame = line.getBoundingBox();
+                for (FirebaseVisionText.Element element : line.getElements()) {
+                    String elementText = element.getText();
+                    Float elementConfidence = element.getConfidence();
+                    List<RecognizedLanguage> elementLanguages = element.getRecognizedLanguages();
+                    Point[] elementCornerPoints = element.getCornerPoints();
+                    Rect elementFrame = element.getBoundingBox();
+                }
+            }
+        }
+    
     }
 }
