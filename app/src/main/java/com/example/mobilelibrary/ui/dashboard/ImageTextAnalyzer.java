@@ -17,6 +17,7 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
@@ -32,7 +33,10 @@ import com.google.firebase.ml.vision.text.RecognizedLanguage;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.concurrent.TimeUnit;
 
 import static com.firebase.ui.auth.AuthUI.getApplicationContext;
@@ -146,7 +150,7 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
                                 splitText(firebaseVisionText);
 
 
-                                Toast.makeText(getApplicationContext(), extractedResult, Toast.LENGTH_LONG).show();
+                                //Toast.makeText(getApplicationContext(), extractedResult, Toast.LENGTH_LONG).show();
 
 
                             }
@@ -167,6 +171,7 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     }
 
     public void splitText(FirebaseVisionText fb) {
+        List <String> lines = null;
         for (FirebaseVisionText.TextBlock block : fb.getTextBlocks()) {
             String blockText = block.getText();
             Float blockConfidence = block.getConfidence();
@@ -175,17 +180,11 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
             Rect blockFrame = block.getBoundingBox();
             for (FirebaseVisionText.Line line : block.getLines()) {
                 String lineText = line.getText();
+                lines.add(lineText);
                 Float lineConfidence = line.getConfidence();
                 List<RecognizedLanguage> lineLanguages = line.getRecognizedLanguages();
                 Point[] lineCornerPoints = line.getCornerPoints();
                 Rect lineFrame = line.getBoundingBox();
-                for (FirebaseVisionText.Element element : line.getElements()) {
-                    String elementText = element.getText();
-                    Float elementConfidence = element.getConfidence();
-                    List<RecognizedLanguage> elementLanguages = element.getRecognizedLanguages();
-                    Point[] elementCornerPoints = element.getCornerPoints();
-                    Rect elementFrame = element.getBoundingBox();
-                }
             }
         }
     
