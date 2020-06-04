@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mobilelibrary.R;
 import com.example.mobilelibrary.models.BookModel;
+import com.example.mobilelibrary.util.TextTranslator;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -76,6 +77,11 @@ public class HomeFragment extends Fragment {
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this.getActivity()));
         recyclerView.setAdapter(adapter);
+
+//        TextTranslator textTranslator = new TextTranslator();
+//        textTranslator.translateText(your text comes here);
+//        String translatedText = textTranslator.getTranslatedText();
+
         return root;
     }
 
