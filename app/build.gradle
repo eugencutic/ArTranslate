@@ -41,6 +41,8 @@ dependencies {
     implementation 'androidx.navigation:navigation-ui:2.2.2'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'com.google.mlkit:translate:16.0.0'
+
 
     implementation 'com.google.firebase:firebase-ml-vision:24.0.3'
 

@@ -25,11 +25,18 @@ import com.example.mobilelibrary.ui.home.HomeFragment;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+
 import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
 import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
 import com.google.firebase.ml.vision.text.RecognizedLanguage;
+import com.google.mlkit.common.model.DownloadConditions;
+import com.google.mlkit.nl.translate.TranslateLanguage;
+import com.google.mlkit.nl.translate.Translation;
+import com.google.mlkit.nl.translate.Translator;
+import com.google.mlkit.nl.translate.TranslatorOptions;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -37,6 +44,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.firebase.ui.auth.AuthUI.getApplicationContext;
@@ -113,7 +121,13 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
 
             Bitmap mutableBitmap = scaledBitmap.copy(Bitmap.Config.ARGB_8888, true);
             // TODO: Get text blocks detections
-            textAnalyzer(mutableBitmap);
+            try {
+                textAnalyzer(mutableBitmap);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
 
             Canvas canvas = new Canvas(mutableBitmap);
@@ -129,25 +143,24 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     }
 
 
-    public void textAnalyzer(Bitmap bitmap) {
+    public void textAnalyzer(Bitmap bitmap) throws ExecutionException, InterruptedException {
         FirebaseVisionImage firebaseVisionImage = FirebaseVisionImage.fromBitmap(bitmap);
         FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
                 .getOnDeviceTextRecognizer();
         processImage(firebaseVisionImage);
     }
 
-    public void processImage(FirebaseVisionImage firebaseVisionImage) {
+    public void processImage(FirebaseVisionImage firebaseVisionImage) throws ExecutionException, InterruptedException {
         FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
                 .getOnDeviceTextRecognizer();
         Task<FirebaseVisionText> result =
-                detector.processImage(firebaseVisionImage)
-                        .addOnSuccessListener(new OnSuccessListener<FirebaseVisionText>() {
+                detector.processImage(firebaseVisionImage);
+                       /* .addOnSuccessListener(new OnSuccessListener<FirebaseVisionText>() {
                             @Override
                             public void onSuccess(FirebaseVisionText firebaseVisionText) {
                                 // Task completed successfully
                                 // ...
-                                String extractedResult = firebaseVisionText.getText();
-                                splitText(firebaseVisionText);
+
 
 
                                 //Toast.makeText(getApplicationContext(), extractedResult, Toast.LENGTH_LONG).show();
@@ -164,7 +177,11 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
 
 
                                     }
-                                });
+                                });*/
+        Tasks.await(result);
+        FirebaseVisionText extractedResult = result.getResult();
+        String text= extractedResult.getText();
+        splitText(extractedResult);
 
 
 
@@ -173,20 +190,67 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     public void splitText(FirebaseVisionText fb) {
         List <String> lines = null;
         for (FirebaseVisionText.TextBlock block : fb.getTextBlocks()) {
-            String blockText = block.getText();
-            Float blockConfidence = block.getConfidence();
-            List<RecognizedLanguage> blockLanguages = block.getRecognizedLanguages();
-            Point[] blockCornerPoints = block.getCornerPoints();
-            Rect blockFrame = block.getBoundingBox();
-            for (FirebaseVisionText.Line line : block.getLines()) {
-                String lineText = line.getText();
-                lines.add(lineText);
-                Float lineConfidence = line.getConfidence();
-                List<RecognizedLanguage> lineLanguages = line.getRecognizedLanguages();
-                Point[] lineCornerPoints = line.getCornerPoints();
-                Rect lineFrame = line.getBoundingBox();
+            //TODO: Catalin
+            String text= block.getText();
+            String translation= translate(text);
             }
         }
-    
+
+    public String translate(String text)
+    {
+        // Create an English-German translator:
+        TranslatorOptions options =
+                new TranslatorOptions.Builder()
+                        .setSourceLanguage(TranslateLanguage.ENGLISH)
+                        .setTargetLanguage(TranslateLanguage.ROMANIAN)
+                        .build();
+        final Translator englishRomanianTranslator =
+                Translation.getClient(options);
+
+        DownloadConditions conditions = new DownloadConditions.Builder()
+                .requireWifi()
+                .build();
+        englishRomanianTranslator.downloadModelIfNeeded(conditions)
+                .addOnSuccessListener(
+                        new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void v) {
+                                // Model downloaded successfully. Okay to start translating.
+                                // (Set a flag, unhide the translation UI, etc.)
+                            }
+                        })
+                .addOnFailureListener(
+                        new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception e) {
+                                // Model couldn’t be downloaded or other internal error.
+                                // ...
+                            }
+                        });
+
+        englishRomanianTranslator.translate(text)
+            .addOnSuccessListener(
+                    new OnSuccessListener<String>() {
+                        @Override
+                        public void onSuccess(@NonNull String translatedText) {
+
+
+
+                        }
+                    })
+            .addOnFailureListener(
+                    new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+
+
+
+                        }
+                    });
+
+        String translated= englishRomanianTranslator.toString();
+        return translated;
     }
+    
+
 }
