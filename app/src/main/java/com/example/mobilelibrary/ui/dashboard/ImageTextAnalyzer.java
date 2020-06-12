@@ -1,23 +1,54 @@
 package com.example.mobilelibrary.ui.dashboard;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.os.Bundle;
 import android.util.Size;
 import android.widget.ImageView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
+import com.example.mobilelibrary.ui.home.HomeFragment;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+
+import com.google.firebase.ml.vision.FirebaseVision;
+import com.google.firebase.ml.vision.common.FirebaseVisionImage;
+import com.google.firebase.ml.vision.text.FirebaseVisionText;
+import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
+import com.google.firebase.ml.vision.text.RecognizedLanguage;
+import com.google.mlkit.common.model.DownloadConditions;
+import com.google.mlkit.nl.translate.TranslateLanguage;
+import com.google.mlkit.nl.translate.Translation;
+import com.google.mlkit.nl.translate.Translator;
+import com.google.mlkit.nl.translate.TranslatorOptions;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import static com.firebase.ui.auth.AuthUI.getApplicationContext;
+import static java.lang.System.exit;
 
 public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     private long lastAnalyzedTimestamp = 0L;
@@ -90,6 +121,14 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
 
             Bitmap mutableBitmap = scaledBitmap.copy(Bitmap.Config.ARGB_8888, true);
             // TODO: Get text blocks detections
+            try {
+                textAnalyzer(mutableBitmap);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
 
             Canvas canvas = new Canvas(mutableBitmap);
             Paint paint = new Paint();
@@ -102,4 +141,57 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
             activity.runOnUiThread(() -> overlay.setImageBitmap(mutableBitmap));
         }
     }
+
+
+    public void textAnalyzer(Bitmap bitmap) throws ExecutionException, InterruptedException {
+        FirebaseVisionImage firebaseVisionImage = FirebaseVisionImage.fromBitmap(bitmap);
+        FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
+                .getOnDeviceTextRecognizer();
+        processImage(firebaseVisionImage);
+    }
+
+    public void processImage(FirebaseVisionImage firebaseVisionImage) throws ExecutionException, InterruptedException {
+        FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
+                .getOnDeviceTextRecognizer();
+        Task<FirebaseVisionText> result =
+                detector.processImage(firebaseVisionImage);
+                       /* .addOnSuccessListener(new OnSuccessListener<FirebaseVisionText>() {
+                            @Override
+                            public void onSuccess(FirebaseVisionText firebaseVisionText) {
+                                // Task completed successfully
+                                // ...
+
+
+
+                                //Toast.makeText(getApplicationContext(), extractedResult, Toast.LENGTH_LONG).show();
+
+
+                            }
+                        })
+                        .addOnFailureListener(
+                                new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        // Task failed with an exception
+                                        // ...
+
+
+                                    }
+                                });*/
+        Tasks.await(result);
+        FirebaseVisionText extractedResult = result.getResult();
+        String text= extractedResult.getText();
+        splitText(extractedResult);
+
+
+
+    }
+
+    public void splitText(FirebaseVisionText fb) {
+        List <String> lines = null;
+        for (FirebaseVisionText.TextBlock block : fb.getTextBlocks()) {
+            //TODO: Catalin
+            String text= block.getText();
+            }
+        }
 }
