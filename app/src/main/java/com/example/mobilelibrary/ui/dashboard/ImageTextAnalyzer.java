@@ -192,65 +192,6 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
         for (FirebaseVisionText.TextBlock block : fb.getTextBlocks()) {
             //TODO: Catalin
             String text= block.getText();
-            String translation= translate(text);
             }
         }
-
-    public String translate(String text)
-    {
-        // Create an English-German translator:
-        TranslatorOptions options =
-                new TranslatorOptions.Builder()
-                        .setSourceLanguage(TranslateLanguage.ENGLISH)
-                        .setTargetLanguage(TranslateLanguage.ROMANIAN)
-                        .build();
-        final Translator englishRomanianTranslator =
-                Translation.getClient(options);
-
-        DownloadConditions conditions = new DownloadConditions.Builder()
-                .requireWifi()
-                .build();
-        englishRomanianTranslator.downloadModelIfNeeded(conditions)
-                .addOnSuccessListener(
-                        new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void v) {
-                                // Model downloaded successfully. Okay to start translating.
-                                // (Set a flag, unhide the translation UI, etc.)
-                            }
-                        })
-                .addOnFailureListener(
-                        new OnFailureListener() {
-                            @Override
-                            public void onFailure(@NonNull Exception e) {
-                                // Model couldn’t be downloaded or other internal error.
-                                // ...
-                            }
-                        });
-
-        englishRomanianTranslator.translate(text)
-            .addOnSuccessListener(
-                    new OnSuccessListener<String>() {
-                        @Override
-                        public void onSuccess(@NonNull String translatedText) {
-
-
-
-                        }
-                    })
-            .addOnFailureListener(
-                    new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-
-
-
-                        }
-                    });
-
-        String translated= englishRomanianTranslator.toString();
-        return translated;
-    }
-    
-
 }
