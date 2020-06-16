@@ -21,8 +21,6 @@ import com.example.mobilelibrary.models.TranslatedText;
 import com.example.mobilelibrary.util.TextTranslator;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
@@ -88,14 +86,17 @@ public class HomeFragment extends Fragment {
 //        TextTranslator textTranslator = new TextTranslator();
 //        textTranslator.translateText(your text comes here);
 //        String translatedText = textTranslator.getTranslatedText();
+//        String translatedFromLanguage =
+//        String translatedToLanguage =
 
 
         //TODO: Uncomment when we have the text translation completely running
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-//        TranslatedText text = new TranslatedText(FirebaseAuth.getInstance().getCurrentUser(),originalText ,translatedText);
+//        TranslatedText text = new TranslatedText(FirebaseAuth.getInstance().getCurrentUser(), originalText, translatedFromLanguage, translatedToLanguage);
+//        db.collection("translations").add(text);
 
-        DatabaseReference reference = FirebaseDatabase.getInstance().getReference().child("translations");
-//        reference.push(text);
+
 
         return root;
     }
