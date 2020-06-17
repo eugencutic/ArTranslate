@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mobilelibrary.R;
 import com.example.mobilelibrary.models.BookModel;
+import com.example.mobilelibrary.models.TranslatedText;
 import com.example.mobilelibrary.util.TextTranslator;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -24,6 +25,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+
+import java.util.List;
 
 public class HomeFragment extends Fragment {
 
@@ -43,7 +46,7 @@ public class HomeFragment extends Fragment {
             }
         });
 
-        final RecyclerView recyclerView = root.findViewById(R.id.recycler_view_books);
+        /*final RecyclerView recyclerView = root.findViewById(R.id.recycler_view_books);
 
         // get query
         FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -78,9 +81,22 @@ public class HomeFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(this.getActivity()));
         recyclerView.setAdapter(adapter);
 
+         */
+
 //        TextTranslator textTranslator = new TextTranslator();
 //        textTranslator.translateText(your text comes here);
 //        String translatedText = textTranslator.getTranslatedText();
+//        String translatedFromLanguage =
+//        String translatedToLanguage =
+
+
+        //TODO: Uncomment when we have the text translation completely running
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+//        TranslatedText text = new TranslatedText(FirebaseAuth.getInstance().getCurrentUser(), originalText, translatedFromLanguage, translatedToLanguage);
+//        db.collection("translations").add(text);
+
+
 
         return root;
     }
@@ -94,7 +110,6 @@ public class HomeFragment extends Fragment {
     @Override
     public void onStop() {
         super.onStop();
-
         if (adapter != null)
             adapter.stopListening();
     }
