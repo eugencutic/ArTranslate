@@ -104,13 +104,13 @@ public class HomeFragment extends Fragment {
     @Override
     public void onStart(){
         super.onStart();
-        adapter.startListening();
+        //adapter.startListening();
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (adapter != null)
-            adapter.stopListening();
+        /*if (adapter != null)
+            adapter.stopListening();*/
     }
 }
