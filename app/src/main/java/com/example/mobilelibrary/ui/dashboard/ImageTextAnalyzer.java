@@ -1,29 +1,22 @@
 package com.example.mobilelibrary.ui.dashboard;
 
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
-import android.os.Bundle;
 import android.util.Size;
 import android.widget.ImageView;
-import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
-import com.example.mobilelibrary.ui.home.HomeFragment;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
+import com.example.mobilelibrary.util.TextTranslator;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 
@@ -34,15 +27,9 @@ import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static com.firebase.ui.auth.AuthUI.getApplicationContext;
-import static java.lang.System.exit;
 
 public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     private long lastAnalyzedTimestamp = 0L;
@@ -51,10 +38,13 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     private Size previewSize;
     private ImageView overlay;
 
-    public ImageTextAnalyzer(Activity activity, Size previewSize, ImageView overlay) {
+    private TextTranslator translator;
+
+    public ImageTextAnalyzer(Activity activity, Size previewSize, ImageView overlay, TextTranslator translator) {
         this.activity = activity;
         this.previewSize = previewSize;
         this.overlay = overlay;
+        this.translator = translator;
     }
 
     private byte[] toByteArray(ByteBuffer byteBuffer) {
@@ -114,37 +104,53 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
             Bitmap scaledBitmap = Bitmap.createScaledBitmap(rotatedBitmap, previewSize.getWidth(), previewSize.getHeight(), true);
 
             Bitmap mutableBitmap = scaledBitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+            FirebaseVisionText textResult = null;
             // TODO: Get text blocks detections
             try {
-                textAnalyzer(mutableBitmap);
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+                textResult = textAnalyzer(mutableBitmap);
+            } catch (ExecutionException | InterruptedException e) {
                 e.printStackTrace();
             }
 
 
+
             Canvas canvas = new Canvas(mutableBitmap);
             Paint paint = new Paint();
-            paint.setColor(android.graphics.Color.RED);
-            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(Color.WHITE);
+            paint.setStyle(Paint.Style.FILL);
             paint.setAntiAlias(true);
             paint.setStrokeWidth(10f);
 
-            canvas.drawRect(0, 0, 100, 100, paint);
+            try {
+                for (FirebaseVisionText.TextBlock block : textResult.getTextBlocks()) {
+                    Rect rect = block.getBoundingBox();
+                    translator.translateText(block.getText());
+                    while (translator.getTranslatedText() == null);
+                    String translation = translator.getTranslatedText();
+                    Paint textPaint = new Paint();
+                    //paint.setColor(android.graphics.Color.BLACK);
+                    //textPaint.setTextSize(rect.bottom - rect.top);
+                    //canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, paint);
+                    canvas.drawText(translation, rect.top, rect.left, textPaint);
+                }
+            }catch (NullPointerException e) {
+                e.printStackTrace();
+            }
+
             activity.runOnUiThread(() -> overlay.setImageBitmap(mutableBitmap));
         }
     }
 
 
-    public void textAnalyzer(Bitmap bitmap) throws ExecutionException, InterruptedException {
+    public FirebaseVisionText textAnalyzer(Bitmap bitmap) throws ExecutionException, InterruptedException {
         FirebaseVisionImage firebaseVisionImage = FirebaseVisionImage.fromBitmap(bitmap);
         FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
                 .getOnDeviceTextRecognizer();
-        processImage(firebaseVisionImage);
+        return processImage(firebaseVisionImage);
     }
 
-    public void processImage(FirebaseVisionImage firebaseVisionImage) throws ExecutionException, InterruptedException {
+    public FirebaseVisionText processImage(FirebaseVisionImage firebaseVisionImage) throws ExecutionException, InterruptedException {
         FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance()
                 .getOnDeviceTextRecognizer();
         Task<FirebaseVisionText> result =
@@ -176,9 +182,7 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
         FirebaseVisionText extractedResult = result.getResult();
         String text= extractedResult.getText();
         splitText(extractedResult);
-
-
-
+        return extractedResult;
     }
 
     public void splitText(FirebaseVisionText fb) {

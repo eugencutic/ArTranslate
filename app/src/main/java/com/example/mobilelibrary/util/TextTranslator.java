@@ -5,31 +5,30 @@ import android.util.Log;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.ml.common.modeldownload.FirebaseModelDownloadConditions;
-import com.google.firebase.ml.naturallanguage.FirebaseNaturalLanguage;
-import com.google.firebase.ml.naturallanguage.translate.FirebaseTranslateLanguage;
-import com.google.firebase.ml.naturallanguage.translate.FirebaseTranslator;
-import com.google.firebase.ml.naturallanguage.translate.FirebaseTranslatorOptions;
+import com.google.mlkit.common.model.DownloadConditions;
+import com.google.mlkit.nl.translate.TranslateLanguage;
+import com.google.mlkit.nl.translate.Translation;
+import com.google.mlkit.nl.translate.Translator;
+import com.google.mlkit.nl.translate.TranslatorOptions;
 
 public class TextTranslator {
 
     private String translatedText;
     private final String TAG = "TRANSLATE";
 
-    private FirebaseTranslator getFirebaseTranslator() {
-        FirebaseTranslatorOptions options = new FirebaseTranslatorOptions.Builder()
-                .setSourceLanguage(FirebaseTranslateLanguage.EN)
-                .setTargetLanguage(FirebaseTranslateLanguage.RO)
+    private Translator getFirebaseTranslator() {
+        TranslatorOptions options = new TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(TranslateLanguage.ROMANIAN)
                 .build();
-        return FirebaseNaturalLanguage.getInstance().getTranslator(options);
+        return Translation.getClient(options);
     }
 
     public void translateText(String textToTranslate) {
+        setTranslatedText(null);
+        Translator translator = getFirebaseTranslator();
 
-        FirebaseTranslator translator = getFirebaseTranslator();
-
-        FirebaseModelDownloadConditions conditions = new FirebaseModelDownloadConditions.Builder()
-            .requireWifi()
+        DownloadConditions conditions = new DownloadConditions.Builder()
             .build();
 
         translator.downloadModelIfNeeded(conditions)
@@ -44,12 +43,13 @@ public class TextTranslator {
                 new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
+                        setTranslatedText("");
                         Log.e(TAG, "Exceptionn while downloading model", e);
                     }
                 });
     }
 
-    private void handleTranslate(FirebaseTranslator translator, String textToTranslate) {
+    private void handleTranslate(Translator translator, String textToTranslate) {
         translator.translate(textToTranslate)
             .addOnSuccessListener(
                 new OnSuccessListener<String>() {
@@ -63,7 +63,8 @@ public class TextTranslator {
                 new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "Exceptionn while translating", e);
+                        setTranslatedText("");
+                        Log.e(TAG, "Exception while translating", e);
                     }
                 });
     }

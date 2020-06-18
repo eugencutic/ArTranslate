@@ -25,6 +25,7 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.ViewModelProviders;
 
 import com.example.mobilelibrary.R;
+import com.example.mobilelibrary.util.TextTranslator;
 
 import java.util.Comparator;
 import java.util.concurrent.ExecutorService;
@@ -118,7 +119,9 @@ public class DashboardFragment extends Fragment implements LifecycleOwner {
 
         ImageAnalysis analysis = new ImageAnalysis(analysisConfig);
 
-        analysis.setAnalyzer(executor, new ImageTextAnalyzer(activity, new Size(imageViewWidth, imageViewHeight), overlay));
+        TextTranslator translator = new TextTranslator();
+
+        analysis.setAnalyzer(executor, new ImageTextAnalyzer(activity, new Size(imageViewWidth, imageViewHeight), overlay, translator));
         CameraX.bindToLifecycle(this, preview, analysis);
     }
 
