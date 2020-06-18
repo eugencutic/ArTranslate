@@ -1,29 +1,20 @@
 package com.example.mobilelibrary.ui.dashboard;
 
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
-import android.os.Bundle;
 import android.util.Size;
 import android.widget.ImageView;
-import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
-import com.example.mobilelibrary.ui.home.HomeFragment;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 
@@ -34,15 +25,13 @@ import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static com.firebase.ui.auth.AuthUI.getApplicationContext;
-import static java.lang.System.exit;
 
 public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     private long lastAnalyzedTimestamp = 0L;
@@ -51,10 +40,17 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     private Size previewSize;
     private ImageView overlay;
 
+    private HashMap<FirebaseVisionText.TextBlock, Integer> currentBlocks;
+    private HashSet<Integer> toBeTranslated;
+    private Integer lastInsertedValue;
+
     public ImageTextAnalyzer(Activity activity, Size previewSize, ImageView overlay) {
         this.activity = activity;
         this.previewSize = previewSize;
         this.overlay = overlay;
+        this.currentBlocks = new HashMap<>();
+        this.toBeTranslated = new HashSet<>();
+        this.lastInsertedValue = -1;
     }
 
     private byte[] toByteArray(ByteBuffer byteBuffer) {
@@ -182,10 +178,51 @@ public class ImageTextAnalyzer implements ImageAnalysis.Analyzer {
     }
 
     public void splitText(FirebaseVisionText fb) {
-        List <String> lines = null;
+        toBeTranslated.clear(); // Clear the blocks that had to be translated the previous frame
+                                // in order to fill it with new blocks that need to be translated
+
+        HashSet<Integer> foundBlocks = new HashSet<>();  // HashSet of all the blocks that exist
+                                                            // in the current frame
+
         for (FirebaseVisionText.TextBlock block : fb.getTextBlocks()) {
-            //TODO: Catalin
-            String text= block.getText();
+            int blockExists = -1;
+
+            // Check if the block found in the current frame was already translated
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                blockExists = currentBlocks.getOrDefault(block, -1);
+            }
+
+            // If the block is new, we add it to HashMap and in the
+            if(blockExists == -1){
+                currentBlocks.put(block, ++lastInsertedValue);
+                toBeTranslated.add(lastInsertedValue);
+            }
+            // Add the Int value of the block in the HashMap into the Set of all blocks found
+            foundBlocks.add(blockExists != -1 ? blockExists : lastInsertedValue);
+        }
+
+        // Create an auxiliary HashMap in order to find all the blocks that we don't need anymore
+        HashMap<FirebaseVisionText.TextBlock, Integer> blocksToBeRemoved = new HashMap<>(currentBlocks);
+
+        // Iterate through all foundBlocks
+        for (Integer valueToBeRemoved : foundBlocks) {
+            // Use an iterator to find the value of the foundBlock in the HashMap
+            Iterator<Map.Entry<FirebaseVisionText.TextBlock, Integer>> iterator = blocksToBeRemoved.entrySet().iterator();
+
+            while (iterator.hasNext()) {
+                Map.Entry<FirebaseVisionText.TextBlock, Integer> entry = iterator.next();
+
+                // Remove all the blocks from the blocksToBeRemoved HashMap, because if it is found,
+                // it doesn't need removing from the main HashMap
+                if (valueToBeRemoved.equals(entry.getValue())) {
+                    iterator.remove();
+                }
             }
         }
+
+        // Remove from the currentBlocks HashMap all the blocks that weren't found again
+        currentBlocks.keySet().removeAll(blocksToBeRemoved.keySet());
+
+    }
+
 }
