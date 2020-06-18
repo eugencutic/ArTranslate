@@ -74,4 +74,17 @@ public class HistoryFragment extends Fragment {
 
         return root;
     }
+
+    @Override
+    public void onStart(){
+        super.onStart();
+        adapter.startListening();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (adapter != null)
+            adapter.stopListening();
+    }
 }
