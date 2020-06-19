@@ -58,6 +58,9 @@ public class HistoryFragment extends Fragment {
 
                 holder.getTextViewTextToTranslate().setText(model.getTextToTranslate());
                 holder.getTextViewTranslatedText().setText(model.getTranslatedText());
+                holder.getTextViewTranslatedFromLanguage().setText(model.getTranslatedFromLanguage());
+                holder.getTextViewTranslatedToLanguage().setText(model.getTranslatedToLanguage());
+
             }
 
             @NonNull
